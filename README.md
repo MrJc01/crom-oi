@@ -1,6 +1,6 @@
 # OI - Orquestrador de Intenção
 
-> **Deployment through Intent, not Configuration.**
+> **Implantação por meio de intenção, não de configuração.**
 
 OI (Orquestrador de Intenção) é uma ferramenta CLI minimalista (`3MB`) para gerenciar containers com foco no **O QUE** você quer, não no **COMO** fazer. Eliminamos a complexidade de `Dockerfiles` e `docker-compose.yml` para a maioria dos casos de uso.
 
