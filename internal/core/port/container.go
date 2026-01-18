@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/crom-tech/oi/internal/core/domain"
@@ -18,8 +19,8 @@ type ContainerRuntime interface {
 	Pull(ctx context.Context, image string) error
 
 	// Create cria um novo container baseado na intenção
-	// Create cria um novo container para a intenção
-	Create(ctx context.Context, intent domain.Intent, version string, publishPort bool) (string, error)
+	// live: se true, aplica configurações de desenvolvimento (volumes, command)
+	Create(ctx context.Context, intent domain.Intent, version string, publishPort bool, live bool) (string, error)
 
 	// Start inicia um container parado
 	Start(ctx context.Context, containerID string) error
@@ -44,4 +45,7 @@ type ContainerRuntime interface {
 
 	// ListNetworks retorna todas as networks gerenciadas pelo OI
 	ListNetworks(ctx context.Context) ([]string, error)
+
+	// Logs escreve os logs do container nos writers fornecidos
+	Logs(ctx context.Context, containerID string, stdout, stderr io.Writer, follow bool, tail string) error
 }

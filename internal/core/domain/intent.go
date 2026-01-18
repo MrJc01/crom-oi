@@ -5,17 +5,26 @@ import "time"
 // Intent representa a intenção declarada no arquivo oi.json
 // É a "fonte da verdade" do que o usuário deseja
 type Intent struct {
-	Nome     string   `json:"nome"`
-	Origem   string   `json:"origem"`
-	Dominio  string   `json:"dominio"`
-	Porta    int      `json:"porta"`
-	Recursos Recursos `json:"recursos"`
+	Nome     string    `json:"nome"`
+	Origem   string    `json:"origem"`
+	Dominio  string    `json:"dominio"`
+	Porta    int       `json:"porta"`
+	Recursos Recursos  `json:"recursos"`
+	Dev      DevConfig `json:"dev,omitempty"`
 }
 
 // Recursos define os limites de CPU e memória para o container
 type Recursos struct {
 	CPU     string `json:"cpu"`
 	Memoria string `json:"memoria"`
+}
+
+// DevConfig define configurações específicas para desenvolvimento (oi up --live)
+type DevConfig struct {
+	// Volumes para montar (ex: ["./src:/app"])
+	Volumes []string `json:"volumes"`
+	// Comando alternativo (ex: ["npm", "run", "dev"])
+	Command []string `json:"command,omitempty"`
 }
 
 // Validate verifica se a intenção está completa

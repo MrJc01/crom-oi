@@ -16,6 +16,7 @@ import (
 func NewUpCommand() *cobra.Command {
 	var path string
 	var noCaddy bool
+	var live bool
 
 	cmd := &cobra.Command{
 		Use:   "up",
@@ -56,12 +57,13 @@ Se o deploy falhar, mantém a versão anterior funcional.`,
 			orchestrator := service.NewOrchestrator(dockerClient, proxyManager)
 
 			// Executa deploy
-			return orchestrator.Up(cmd.Context(), *intent)
+			return orchestrator.Up(cmd.Context(), *intent, live)
 		},
 	}
 
 	cmd.Flags().StringVarP(&path, "file", "f", ".", "Caminho para oi.json ou diretório contendo")
 	cmd.Flags().BoolVar(&noCaddy, "no-caddy", false, "Desabilita integração com Caddy")
+	cmd.Flags().BoolVar(&live, "live", false, "Habilita modo de desenvolvimento com volumes")
 
 	return cmd
 }

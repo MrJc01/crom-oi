@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ func NewOrchestrator(runtime port.ContainerRuntime, proxy port.ProxyManager) *Or
 
 // Up realiza o deploy da intenção usando Blue-Green strategy
 // Se falhar, mantém a versão anterior funcional (Zero-Downtime)
-func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent) error {
+func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent, live bool) error {
 	// 0. Validação Fail-Fast: DNS
 	if err := o.verifyDomain(intent.Dominio); err != nil {
 		return err
@@ -61,6 +62,7 @@ func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent) error {
 	}
 
 	// 4. Baixar imagem
+	// Se for live, talvez queremos garantir pull? Sim, imagem base ainda precisa.
 	fmt.Printf("📦 Baixando imagem '%s'...\n", intent.Origem)
 	if err := o.runtime.Pull(ctx, intent.Origem); err != nil {
 		return fmt.Errorf("falha ao baixar imagem: %w", err)
@@ -72,7 +74,7 @@ func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent) error {
 	// Se não tem proxy, publica a porta diretamente no host para acesso local
 	publishPort := (o.proxy == nil)
 
-	newID, err := o.runtime.Create(ctx, intent, version, publishPort)
+	newID, err := o.runtime.Create(ctx, intent, version, publishPort, live)
 	if err != nil {
 		return fmt.Errorf("falha ao criar container: %w", err)
 	}
@@ -297,4 +299,37 @@ func (o *Orchestrator) generateVersion(intent domain.Intent) string {
 	)
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
+}
+
+// Logs obtém o stream de logs do container principal do projeto
+func (o *Orchestrator) Logs(ctx context.Context, project string, stdout, stderr io.Writer, follow bool, tail string) error {
+	containers, err := o.runtime.List(ctx, project)
+	if err != nil {
+		return fmt.Errorf("falha ao listar containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		return fmt.Errorf("nenhum container encontrado para o projeto '%s'", project)
+	}
+
+	// Tenta encontrar um container rodando
+	var targetID string
+	var targetName string
+
+	for _, c := range containers {
+		if c.Status == domain.StatusRunning {
+			targetID = c.ID
+			targetName = c.Name
+			break
+		}
+	}
+
+	// Se nenhum estiver rodando, pega o primeiro da lista (mais recente geralmente)
+	if targetID == "" {
+		targetID = containers[0].ID
+		targetName = containers[0].Name
+	}
+
+	fmt.Printf("📜 Exibindo logs de '%s'...\n", targetName)
+	return o.runtime.Logs(ctx, targetID, stdout, stderr, follow, tail)
 }

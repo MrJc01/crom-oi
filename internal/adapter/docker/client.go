@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 
 	"github.com/crom-tech/oi/internal/core/domain"
@@ -91,7 +94,7 @@ func (c *Client) Pull(ctx context.Context, imageName string) error {
 }
 
 // Create cria um novo container baseado na intenção
-func (c *Client) Create(ctx context.Context, intent domain.Intent, version string, publishPort bool) (string, error) {
+func (c *Client) Create(ctx context.Context, intent domain.Intent, version string, publishPort bool, live bool) (string, error) {
 	containerName := c.containerName(intent.Nome, version)
 	networkName := c.networkName(intent.Nome)
 
@@ -115,6 +118,7 @@ func (c *Client) Create(ctx context.Context, intent domain.Intent, version strin
 		ExposedPorts: nat.PortSet{
 			exposedPort: struct{}{},
 		},
+		Tty: true, // Importante para logs coloridos
 	}
 
 	// Configuração do host (recursos e portas)
@@ -126,6 +130,36 @@ func (c *Client) Create(ctx context.Context, intent domain.Intent, version strin
 		RestartPolicy: container.RestartPolicy{
 			Name: "unless-stopped",
 		},
+	}
+
+	// Live Mode: Volumes e Command
+	if live {
+		// Converter volumes para caminhos absolutos
+		cwd, _ := os.Getwd()
+		var binds []string
+		for _, vol := range intent.Dev.Volumes {
+			parts := strings.Split(vol, ":")
+			if len(parts) >= 1 {
+				hostPath := parts[0]
+				// Se for relativo, join com CWD
+				if !strings.HasPrefix(hostPath, "/") {
+					hostPath = filepath.Join(cwd, hostPath)
+				}
+
+				containerPath := hostPath // Default se não especificado
+				if len(parts) > 1 {
+					containerPath = parts[1]
+				}
+				binds = append(binds, fmt.Sprintf("%s:%s", hostPath, containerPath))
+			}
+		}
+		hostConfig.Binds = binds
+
+		// Sobrescrever comando se definido
+		if len(intent.Dev.Command) > 0 {
+			config.Cmd = intent.Dev.Command
+		}
+		fmt.Printf("🔥 Modo Live Ativo: %d volumes montados\n", len(binds))
 	}
 
 	// Se publishPort for true, mapeia a porta no host
@@ -361,6 +395,31 @@ func (c *Client) ListNetworks(ctx context.Context) ([]string, error) {
 	return projects, nil
 }
 
+// Logs retorna logs do container
+func (c *Client) Logs(ctx context.Context, containerID string, stdout, stderr io.Writer, follow bool, tail string) error {
+	options := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     follow,
+		Tail:       tail,
+	}
+
+	rc, err := c.cli.ContainerLogs(ctx, containerID, options)
+	if err != nil {
+		return fmt.Errorf("falha ao obter logs: %w", err)
+	}
+	defer rc.Close()
+
+	// Docker retorna stream multiplexado com headers (se TTY=false)
+	// Usamos stdcopy para separar
+	_, err = stdcopy.StdCopy(stdout, stderr, rc)
+	if err != nil {
+		return fmt.Errorf("falha ao copiar logs: %w", err)
+	}
+
+	return nil
+}
+
 // containerName gera o nome do container
 func (c *Client) containerName(project, version string) string {
 	return fmt.Sprintf("oi-%s-%s", project, version[:8])
@@ -383,6 +442,25 @@ func (c *Client) toDomainContainer(ctr types.Container) domain.Container {
 		status = domain.StatusRunning
 	}
 
+	// Health parsing da string de status (ex: "Up 2 minutes (healthy)")
+	health := domain.HealthUnknown
+
+	// Se estiver rodando, assumimos Healthy por padrão (comportamento otimista para containers simples)
+	// Isso evita o "?" para containers como Nginx que não têm healthcheck nativo
+	if status == domain.StatusRunning {
+		health = domain.HealthHealthy
+	}
+
+	// Se houver informação explícita de health no status string, usamos
+	statusStr := strings.ToLower(ctr.Status)
+	if strings.Contains(statusStr, "(healthy)") {
+		health = domain.HealthHealthy
+	} else if strings.Contains(statusStr, "(unhealthy)") {
+		health = domain.HealthUnhealthy
+	} else if strings.Contains(statusStr, "(starting)") {
+		health = domain.HealthStarting
+	}
+
 	return domain.Container{
 		ID:        ctr.ID,
 		Name:      name,
@@ -390,7 +468,10 @@ func (c *Client) toDomainContainer(ctr types.Container) domain.Container {
 		Version:   ctr.Labels[labels.Version],
 		Image:     ctr.Image,
 		Status:    status,
+		Health:    health,
 		CreatedAt: time.Unix(ctr.Created, 0),
+		// PublicPort não está disponível em ContainerList de forma fácil sem Inspect
+		// Deixamos 0 ou tentamos parsear de Ports se disponível
 	}
 }
 
