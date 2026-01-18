@@ -104,9 +104,17 @@ func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent) error {
 
 	// 9. Atualizar proxy para novo container
 	// 9. Atualizar proxy para novo container
+	// 9. Atualizar proxy para novo container
 	if o.proxy != nil {
 		fmt.Printf("🔀 Configurando proxy para %s...\n", intent.Dominio)
-		if err := o.proxy.AddRoute(ctx, intent.Dominio, container.Name, intent.Porta); err != nil {
+
+		// Se porta for 0 (dinâmica), o container usa 80 internamente por padrão
+		proxyPort := intent.Porta
+		if proxyPort == 0 {
+			proxyPort = 80
+		}
+
+		if err := o.proxy.AddRoute(ctx, intent.Dominio, container.Name, proxyPort); err != nil {
 			// Não faz rollback aqui pois o container está healthy
 			fmt.Printf("⚠️  Aviso: falha ao configurar proxy: %v\n", err)
 		}
@@ -125,11 +133,18 @@ func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent) error {
 
 	// 11. Mensagem de sucesso com opções de acesso
 	fmt.Printf("\n✅ Deploy completo!\n")
+
+	// Porta para exibição (usar a real do container)
+	displayPort := container.PublicPort
+	if displayPort == 0 {
+		displayPort = intent.Porta // Fallback
+	}
+
 	if strings.HasSuffix(intent.Dominio, ".localhost") {
 		fmt.Printf("\n📡 Acesso local disponível:\n")
-		fmt.Printf("   • http://127.0.0.1:%d\n", intent.Porta)
-		fmt.Printf("   • http://localhost:%d\n", intent.Porta)
-		fmt.Printf("   • http://%s:%d (requer /etc/hosts)\n", intent.Dominio, intent.Porta)
+		fmt.Printf("   • http://127.0.0.1:%d\n", displayPort)
+		fmt.Printf("   • http://localhost:%d\n", displayPort)
+		fmt.Printf("   • http://%s:%d (requer /etc/hosts)\n", intent.Dominio, displayPort)
 		if o.proxy != nil {
 			fmt.Printf("   • https://%s (via Caddy, se configurado)\n", intent.Dominio)
 		}

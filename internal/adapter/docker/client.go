@@ -96,7 +96,14 @@ func (c *Client) Create(ctx context.Context, intent domain.Intent, version strin
 	networkName := c.networkName(intent.Nome)
 
 	// Configuração do container
-	exposedPort := nat.Port(fmt.Sprintf("%d/tcp", intent.Porta))
+	// Se a porta for 0 na intenção, usamos 80 como porta interna padrão do container
+	// mas deixamos o bind externo como aleatório
+	internalPort := intent.Porta
+	if internalPort == 0 {
+		internalPort = 80 // Porta padrão interna comum
+	}
+	exposedPort := nat.Port(fmt.Sprintf("%d/tcp", internalPort))
+
 	config := &container.Config{
 		Image: intent.Origem,
 		Labels: labels.OILabels(
@@ -121,13 +128,18 @@ func (c *Client) Create(ctx context.Context, intent domain.Intent, version strin
 		},
 	}
 
-	// Se publishPort for true, mapeia a porta no host (localhost)
+	// Se publishPort for true, mapeia a porta no host
 	if publishPort {
+		hostPort := fmt.Sprintf("%d", intent.Porta)
+		if intent.Porta == 0 {
+			hostPort = "0" // Docker aloca porta aleatória
+		}
+
 		hostConfig.PortBindings = nat.PortMap{
 			exposedPort: []nat.PortBinding{
 				{
-					HostIP:   "127.0.0.1",
-					HostPort: fmt.Sprintf("%d", intent.Porta),
+					HostIP:   "0.0.0.0", // Bind em todas as interfaces para garantir acesso
+					HostPort: hostPort,
 				},
 			},
 		}
@@ -242,6 +254,16 @@ func (c *Client) Inspect(ctx context.Context, containerID string) (*domain.Conta
 		Project: info.Config.Labels[labels.Project],
 		Version: info.Config.Labels[labels.Version],
 		Image:   info.Config.Image,
+	}
+
+	// Descobrir porta pública mapeada
+	for _, bindings := range info.NetworkSettings.Ports {
+		if len(bindings) > 0 {
+			var p int
+			fmt.Sscanf(bindings[0].HostPort, "%d", &p)
+			ctr.PublicPort = p
+			break
+		}
 	}
 
 	// Status

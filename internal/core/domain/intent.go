@@ -29,7 +29,7 @@ func (i *Intent) Validate() error {
 	if i.Dominio == "" {
 		return ErrMissingField("dominio")
 	}
-	if i.Porta <= 0 || i.Porta > 65535 {
+	if i.Porta < 0 || i.Porta > 65535 {
 		return ErrInvalidPort
 	}
 	return nil
@@ -57,14 +57,15 @@ const (
 
 // Container representa o estado atual de um container gerenciado pelo OI
 type Container struct {
-	ID        string
-	Name      string
-	Project   string
-	Version   string
-	Image     string
-	Status    ContainerStatus
-	Health    HealthStatus
-	CreatedAt time.Time
+	ID         string
+	Name       string
+	Project    string
+	Version    string
+	Image      string
+	Status     ContainerStatus
+	Health     HealthStatus
+	CreatedAt  time.Time
+	PublicPort int
 }
 
 // IsHealthy retorna true se o container está saudável e pronto para receber tráfego
