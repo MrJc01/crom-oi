@@ -1,0 +1,10 @@
+{
+  "nome": "hello-world",
+  "origem": "docker.io/library/nginx:alpine",
+  "dominio": "hello-world.localhost",
+  "porta": 80,
+  "recursos": {
+    "cpu": "0.5",
+    "memoria": "256mb"
+  }
+}
