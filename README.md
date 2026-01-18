@@ -101,6 +101,11 @@ Cria um esqueleto de arquivo `oi.json`.
 - **Flags:**
   - `-d, --dockerfile`: Lê um `Dockerfile` existente para extrair a porta (`EXPOSE`) e configurar o projeto automaticamente.
 
+### `oi update` (ou `oi upgrade`)
+Verifica e instala a última versão estável do OI.
+- Mantém o histórico de versões antigas em `~/.oi/versions/`.
+- **Uso:** `sudo oi update` (Requer sudo se instalado em `/usr/local/bin`).
+
 ---
 
 ## ⚙️ Configuração (`oi.json`)

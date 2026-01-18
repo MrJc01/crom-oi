@@ -35,6 +35,7 @@ O OI lê o arquivo oi.json e garante que a realidade do servidor
 	rootCmd.AddCommand(cli.NewLogsCommand())
 	rootCmd.AddCommand(cli.NewLogCommand())
 	rootCmd.AddCommand(cli.NewInfoCommand(version))
+	rootCmd.AddCommand(cli.NewUpdateCommand(version))
 	rootCmd.AddCommand(newInitCommand())
 
 	if err := rootCmd.Execute(); err != nil {
