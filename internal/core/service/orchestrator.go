@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net"
+	"strings"
 	"time"
 
 	"github.com/crom-tech/oi/internal/core/domain"
@@ -28,6 +30,19 @@ func NewOrchestrator(runtime port.ContainerRuntime, proxy port.ProxyManager) *Or
 // Up realiza o deploy da intenção usando Blue-Green strategy
 // Se falhar, mantém a versão anterior funcional (Zero-Downtime)
 func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent) error {
+	// 0. Validação Fail-Fast: DNS
+	if err := o.verifyDomain(intent.Dominio); err != nil {
+		return err
+	}
+
+	// 0.1. Validação Fail-Fast: Proxy acessível
+	if o.proxy != nil {
+		fmt.Printf("🔍 Verificando conectividade com proxy...\n")
+		if err := o.proxy.Health(ctx); err != nil {
+			return fmt.Errorf("❌ Proxy (Caddy) não acessível. Verifique se está rodando: %w", err)
+		}
+	}
+
 	// 1. Gerar version hash
 	version := o.generateVersion(intent)
 
@@ -156,6 +171,23 @@ func (o *Orchestrator) Down(ctx context.Context, project string) error {
 // Status retorna o estado atual de um projeto
 func (o *Orchestrator) Status(ctx context.Context, project string) ([]domain.Container, error) {
 	return o.runtime.List(ctx, project)
+}
+
+// verifyDomain valida se o domínio está configurado corretamente
+// Evita falhas silenciosas na emissão de SSL pelo Caddy
+func (o *Orchestrator) verifyDomain(domain string) error {
+	// Bypass para desenvolvimento local
+	if strings.HasSuffix(domain, ".localhost") {
+		return nil
+	}
+
+	// Lookup DNS para verificar se domínio aponta para algum servidor
+	_, err := net.LookupHost(domain)
+	if err != nil {
+		return fmt.Errorf("❌ Domínio '%s' não aponta para este servidor. Configure o DNS antes de fazer deploy: %w", domain, err)
+	}
+
+	return nil
 }
 
 // generateVersion gera um hash único para a versão
