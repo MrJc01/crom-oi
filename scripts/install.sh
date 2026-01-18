@@ -33,11 +33,11 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-log_success() { echo -e "${GREEN}✅ $1${NC}"; }
-log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-log_error() { echo -e "${RED}❌ $1${NC}"; }
-log_step() { echo -e "${CYAN}→ $1${NC}"; }
+log_info() { echo -e "${BLUE}ℹ️  $1${NC}" >&2; }
+log_success() { echo -e "${GREEN}✅ $1${NC}" >&2; }
+log_warning() { echo -e "${YELLOW}⚠️  $1${NC}" >&2; }
+log_error() { echo -e "${RED}❌ $1${NC}" >&2; }
+log_step() { echo -e "${CYAN}→ $1${NC}" >&2; }
 
 # =============================================================================
 # FUNÇÕES DE DETECÇÃO
