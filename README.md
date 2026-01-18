@@ -46,27 +46,37 @@ oi init meu-app
 # Produção (Usa a imagem definida em 'origem')
 sudo oi up
 
-# Desenvolvimento (Monta volumes locais para Hot Reload)
+# Modo Live (Monta volumes locais para Hot Reload)
 sudo oi up --live
+
+# Arquivo Específico
+sudo oi up meu-projeto.json
+
+# Todos os arquivos da pasta
+sudo oi up --all
+
+# Filtrando arquivos
+sudo oi up --filter "servico-*.json"
 ```
 
 ---
 
 ## 🔧 Referência de Comandos
 
-### `oi up` e `oi up --live`
-Realiza ou atualiza o deploy da intenção atual.
-- **Uso:** `oi up [flags]`
+### `oi up`
+Realiza ou atualiza o deploy da intenção.
+- **Uso:** `oi up [arquivo] [flags]`
 - **Flags:**
-  - `--live`: Ativa o "Modo Live". Monta volumes definidos em `dev.volumes` e executa `dev.command` (se houver). Ideal para desenvolvimento local.
-  - `--no-caddy`: Desabilita a integração automática com Caddy (útil se você não usa proxy ou está conflitando na porta 80).
-  - `-f, --file`: Caminho para o `oi.json` (padrão: diretório atual).
+  - `--all`: Processa todos os arquivos `.json` do diretório atual.
+  - `--filter`: Filtra arquivos usando glob pattern (ex: `*-prod.json`).
+  - `--live`: Ativa o "Modo Live".
+  - `--no-caddy`: Desabilita Caddy.
 
 ### `oi down` (ou `oi remove`)
-Remove recursos (containers, redes, rotas).
+Remove recursos.
 - **Uso:** `oi down [flags]`
 - **Flags:**
-  - `--all`: 🚨 **Limpeza Total**. Remove TODOS os containers e redes gerenciados pelo OI no sistema.
+  - `--all`: 🚨 **Limpeza Total**. Remove TODOS os containers e redes gerenciados pelo OI.
   - `-p, --project`: Especifica um projeto para remover.
 
 ### `oi status`
@@ -114,13 +124,14 @@ O arquivo `oi.json` é a fonte da verdade.
 
 | Campo | Descrição | Exemplo |
 |-------|-----------|---------|
-| `nome` | Nome único do projeto no sistema. | `"meu-blog"` |
-| `origem` | Imagem Docker base. | `"wordpress:latest"` |
-| `dominio` | Domínio ou subdomínio local. | `"blog.localhost"` |
-| `porta` | Porta interna do container. Se `0`, o Docker aloca uma porta aleatória. | `80` ou `3000` |
-| `recursos` | Limites de hardware. | `{"cpu": "1.0", "memoria": "512mb"}` |
-| `dev.volumes` | Mapeamento de volumes (Host:Container). Só ativo com `--live`. | `["./wp-content:/var/www/html/wp-content"]` |
-| `dev.command` | Comando override para dev. | `["npm", "run", "dev"]` |
+| `nome` / `name` | Nome único do projeto. | `"meu-blog"` |
+| `origem` / `origin` | Imagem Docker base. | `"wordpress:latest"` |
+| `dominio` / `domain` | Domínio ou subdomínio local. | `"blog.localhost"` |
+| `porta` / `port` | Porta interna do container. | `80` |
+| `recursos` / `resources` | Limites de hardware. | `{"cpu": "1.0", "memory": "512mb"}` |
+| `dev.volumes` | Mapeamento de volumes. | `["./src:/app"]` |
+
+> **Nota:** Você pode usar chaves em **Português** ou **Inglês**. O OI entende ambas! 🇺🇸 🇧🇷
 
 ---
 

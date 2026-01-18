@@ -58,12 +58,12 @@ func NewUpdateCommand(currentVersion string) *cobra.Command {
 			}
 
 			// 3. Prepare Directories
-			homeDir, err := os.UserHomeDir()
+			cwd, err := os.Getwd()
 			if err != nil {
-				return fmt.Errorf("falha ao obter home dir: %w", err)
+				return fmt.Errorf("falha ao obter diretório atual: %w", err)
 			}
 
-			versionDir := filepath.Join(homeDir, ".oi", "versions", latest.TagName)
+			versionDir := filepath.Join(cwd, "versions", latest.TagName)
 			if err := os.MkdirAll(versionDir, 0755); err != nil {
 				return fmt.Errorf("falha ao criar diretório de versão: %w", err)
 			}

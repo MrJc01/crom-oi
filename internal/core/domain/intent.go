@@ -5,18 +5,59 @@ import "time"
 // Intent representa a intenção declarada no arquivo oi.json
 // É a "fonte da verdade" do que o usuário deseja
 type Intent struct {
-	Nome     string    `json:"nome"`
-	Origem   string    `json:"origem"`
-	Dominio  string    `json:"dominio"`
-	Porta    int       `json:"porta"`
-	Recursos Recursos  `json:"recursos"`
-	Dev      DevConfig `json:"dev,omitempty"`
+	// Portuguese
+	Nome     string   `json:"nome,omitempty"`
+	Origem   string   `json:"origem,omitempty"`
+	Dominio  string   `json:"dominio,omitempty"`
+	Porta    int      `json:"porta,omitempty"`
+	Recursos Recursos `json:"recursos,omitempty"`
+
+	// English
+	Name      string   `json:"name,omitempty"`
+	Origin    string   `json:"origin,omitempty"`
+	Domain    string   `json:"domain,omitempty"`
+	Port      int      `json:"port,omitempty"`
+	Resources Recursos `json:"resources,omitempty"`
+
+	Dev DevConfig `json:"dev,omitempty"`
 }
 
 // Recursos define os limites de CPU e memória para o container
 type Recursos struct {
-	CPU     string `json:"cpu"`
-	Memoria string `json:"memoria"`
+	// Portuguese
+	CPU     string `json:"cpu,omitempty"`
+	Memoria string `json:"memoria,omitempty"`
+
+	// English
+	Memory string `json:"memory,omitempty"`
+}
+
+// Normalize consolida os campos em Inglês para os campos em Português
+func (i *Intent) Normalize() {
+	if i.Nome == "" {
+		i.Nome = i.Name
+	}
+	if i.Origem == "" {
+		i.Origem = i.Origin
+	}
+	if i.Dominio == "" {
+		i.Dominio = i.Domain
+	}
+	if i.Porta == 0 {
+		i.Porta = i.Port
+	}
+
+	// Recursos
+	if i.Recursos.CPU == "" && i.Resources.CPU != "" {
+		i.Recursos.CPU = i.Resources.CPU
+	}
+	if i.Recursos.Memoria == "" {
+		if i.Resources.Memory != "" {
+			i.Recursos.Memoria = i.Resources.Memory
+		} else if i.Resources.Memoria != "" {
+			i.Recursos.Memoria = i.Resources.Memoria
+		}
+	}
 }
 
 // DevConfig define configurações específicas para desenvolvimento (oi up --live)

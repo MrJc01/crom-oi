@@ -38,6 +38,9 @@ func LoadIntent(path string) (*domain.Intent, error) {
 		return nil, fmt.Errorf("erro ao parsear JSON: %w", err)
 	}
 
+	// Normaliza campos (Inglês -> Português)
+	intent.Normalize()
+
 	// Valida campos obrigatórios
 	if err := intent.Validate(); err != nil {
 		return nil, err
