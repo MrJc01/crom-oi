@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -42,27 +45,70 @@ O OI lê o arquivo oi.json e garante que a realidade do servidor
 
 // newInitCommand cria o comando "oi init" para gerar um oi.json exemplo
 func newInitCommand() *cobra.Command {
-	return &cobra.Command{
+	var dockerfile string
+
+	cmd := &cobra.Command{
 		Use:   "init [nome]",
 		Short: "Cria um arquivo oi.json de exemplo",
+		Long:  `Gera um arquivo de configuração oi.json. Pode ler um Dockerfile existente para extrair a porta (EXPOSE).`,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			nome := "meu-app"
+			origem := "docker.io/library/nginx:alpine"
+			porta := 80
+
+			// Se Dockerfile especificado, tenta extrair informações
+			if dockerfile != "" {
+				fmt.Printf("🐳 Lendo Dockerfile '%s'...\n", dockerfile)
+
+				// 1. Nome e Origem baseados no diretório atual
+				cwd, err := os.Getwd()
+				if err == nil {
+					dirName := filepath.Base(cwd)
+					nome = dirName
+					origem = fmt.Sprintf("%s:latest", dirName)
+				}
+
+				// 2. Extrair porta do EXPOSE
+				file, err := os.Open(dockerfile)
+				if err != nil {
+					return fmt.Errorf("❌ Erro ao ler Dockerfile: %w", err)
+				}
+				defer file.Close()
+
+				scanner := bufio.NewScanner(file)
+				for scanner.Scan() {
+					line := strings.TrimSpace(scanner.Text())
+					upperLine := strings.ToUpper(line)
+					if strings.HasPrefix(upperLine, "EXPOSE") {
+						parts := strings.Fields(line)
+						if len(parts) >= 2 {
+							var p int
+							if _, err := fmt.Sscanf(parts[1], "%d", &p); err == nil {
+								porta = p
+								fmt.Printf("   ✅ Porta %d detectada\n", porta)
+							}
+						}
+					}
+				}
+			}
+
+			// Argumento CLI tem prioridade para o nome
 			if len(args) > 0 {
 				nome = args[0]
 			}
 
 			template := fmt.Sprintf(`{
   "nome": "%s",
-  "origem": "docker.io/library/nginx:alpine",
+  "origem": "%s",
   "dominio": "%s.localhost",
-  "porta": 80,
+  "porta": %d,
   "recursos": {
     "cpu": "0.5",
     "memoria": "256mb"
   }
 }
-`, nome, nome)
+`, nome, origem, nome, porta)
 
 			if err := os.WriteFile("oi.json", []byte(template), 0644); err != nil {
 				return fmt.Errorf("❌ Erro ao criar oi.json: %w", err)
@@ -73,4 +119,8 @@ func newInitCommand() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVarP(&dockerfile, "dockerfile", "d", "", "Caminho para um Dockerfile existente para importar config")
+
+	return cmd
 }

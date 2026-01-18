@@ -97,7 +97,9 @@ Exibe diagnósticos do sistema (Versão, Docker Daemon, Caddy, Redes).
 
 ### `oi init`
 Cria um esqueleto de arquivo `oi.json`.
-- **Uso:** `oi init [nome-do-app]`
+- **Uso:** `oi init [nome-do-app] [flags]`
+- **Flags:**
+  - `-d, --dockerfile`: Lê um `Dockerfile` existente para extrair a porta (`EXPOSE`) e configurar o projeto automaticamente.
 
 ---
 

@@ -1,8 +1,8 @@
 {
-  "nome": "hello-world",
-  "origem": "docker.io/library/nginx:alpine",
-  "dominio": "hello-world.localhost",
-  "porta": 80,
+  "nome": "crom-oi",
+  "origem": "crom-oi:latest",
+  "dominio": "crom-oi.localhost",
+  "porta": 9090,
   "recursos": {
     "cpu": "0.5",
     "memoria": "256mb"
