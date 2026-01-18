@@ -123,7 +123,20 @@ func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent) error {
 		}
 	}
 
-	fmt.Printf("✅ Deploy completo! Acesse: https://%s\n", intent.Dominio)
+	// 11. Mensagem de sucesso com opções de acesso
+	fmt.Printf("\n✅ Deploy completo!\n")
+	if strings.HasSuffix(intent.Dominio, ".localhost") {
+		fmt.Printf("\n📡 Acesso local disponível:\n")
+		fmt.Printf("   • http://127.0.0.1:%d\n", intent.Porta)
+		fmt.Printf("   • http://localhost:%d\n", intent.Porta)
+		fmt.Printf("   • http://%s:%d (requer /etc/hosts)\n", intent.Dominio, intent.Porta)
+		if o.proxy != nil {
+			fmt.Printf("   • https://%s (via Caddy, se configurado)\n", intent.Dominio)
+		}
+	} else {
+		fmt.Printf("   Acesse: https://%s\n", intent.Dominio)
+	}
+	fmt.Println()
 	return nil
 }
 
