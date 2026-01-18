@@ -337,6 +337,30 @@ func (c *Client) RemoveNetwork(ctx context.Context, project string) error {
 	return nil
 }
 
+// ListNetworks retorna lista de projetos que possuem networks gerenciadas pelo OI
+func (c *Client) ListNetworks(ctx context.Context) ([]string, error) {
+	networks, err := c.cli.NetworkList(ctx, network.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("label", labels.Managed+"=true")),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("falha ao listar networks: %w", err)
+	}
+
+	projects := make([]string, 0, len(networks))
+	unique := make(map[string]bool)
+
+	for _, n := range networks {
+		if project, ok := n.Labels[labels.Project]; ok {
+			if !unique[project] {
+				projects = append(projects, project)
+				unique[project] = true
+			}
+		}
+	}
+
+	return projects, nil
+}
+
 // containerName gera o nome do container
 func (c *Client) containerName(project, version string) string {
 	return fmt.Sprintf("oi-%s-%s", project, version[:8])

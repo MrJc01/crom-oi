@@ -41,4 +41,7 @@ type ContainerRuntime interface {
 
 	// RemoveNetwork remove a network de um projeto se não houver containers
 	RemoveNetwork(ctx context.Context, project string) error
+
+	// ListNetworks retorna todas as networks gerenciadas pelo OI
+	ListNetworks(ctx context.Context) ([]string, error)
 }

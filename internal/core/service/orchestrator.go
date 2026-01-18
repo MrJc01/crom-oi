@@ -155,19 +155,23 @@ func (o *Orchestrator) Up(ctx context.Context, intent domain.Intent) error {
 	return nil
 }
 
-// Down remove todos os containers e recursos de um projeto
+// Down remove todos os containers e recursos de um projeto (ou todos se project == "")
 func (o *Orchestrator) Down(ctx context.Context, project string) error {
-	fmt.Printf("🛑 Parando projeto '%s'...\n", project)
+	label := project
+	if label == "" {
+		label = "TODOS OS PROJETOS"
+	}
+	fmt.Printf("🛑 Parando recursos de '%s'...\n", label)
 
-	// 1. Listar containers do projeto
+	// 1. Listar containers do projeto (ou todos)
 	containers, err := o.runtime.List(ctx, project)
 	if err != nil {
 		return fmt.Errorf("falha ao listar containers: %w", err)
 	}
 
-	if len(containers) == 0 {
+	if len(containers) == 0 && project != "" {
 		fmt.Printf("⚠️  Nenhum container encontrado para '%s'\n", project)
-		return nil
+		// Se for projeto específico, tenta remover network mesmo assim
 	}
 
 	// 2. Parar e remover cada container
@@ -186,13 +190,77 @@ func (o *Orchestrator) Down(ctx context.Context, project string) error {
 		}
 	}
 
-	// 4. Remover network
-	fmt.Printf("🌐 Removendo network...\n")
-	if err := o.runtime.RemoveNetwork(ctx, project); err != nil {
-		fmt.Printf("⚠️  Aviso: falha ao remover network: %v\n", err)
+	// 4. Remover networks
+	// Se project == "", listar todas as networks gerenciadas e remover
+	if project == "" {
+		fmt.Printf("🌐 Removendo todas as networks OI...\n")
+		projects, err := o.runtime.ListNetworks(ctx)
+		if err != nil {
+			fmt.Printf("⚠️  Aviso: falha ao listar networks: %v\n", err)
+		} else {
+			for _, p := range projects {
+				if err := o.runtime.RemoveNetwork(ctx, p); err != nil {
+					fmt.Printf("⚠️  Aviso: falha ao remover network do projeto %s: %v\n", p, err)
+				}
+			}
+		}
+	} else {
+		// Projeto específico
+		fmt.Printf("🌐 Removendo network...\n")
+		if err := o.runtime.RemoveNetwork(ctx, project); err != nil {
+			// Ignora erro se network não existir
+		}
 	}
 
-	fmt.Printf("✅ Projeto '%s' removido com sucesso!\n", project)
+	fmt.Printf("✅ Recursos de '%s' removidos com sucesso!\n", label)
+	return nil
+}
+
+// Stop para containers de um projeto (ou todos)
+func (o *Orchestrator) Stop(ctx context.Context, project string) error {
+	containers, err := o.runtime.List(ctx, project)
+	if err != nil {
+		return fmt.Errorf("falha ao listar containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		fmt.Println("⚠️  Nenhum container encontrado.")
+		return nil
+	}
+
+	for _, c := range containers {
+		if c.Status == domain.StatusRunning {
+			fmt.Printf("🛑 Parando %s...\n", c.Name)
+			if err := o.runtime.Stop(ctx, c.ID, 30*time.Second); err != nil {
+				fmt.Printf("⚠️  Falha ao parar %s: %v\n", c.Name, err)
+			}
+		}
+	}
+	fmt.Println("✅ Containers parados.")
+	return nil
+}
+
+// Start inicia containers de um projeto (ou todos)
+func (o *Orchestrator) Start(ctx context.Context, project string) error {
+	containers, err := o.runtime.List(ctx, project)
+	if err != nil {
+		return fmt.Errorf("falha ao listar containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		fmt.Println("⚠️  Nenhum container encontrado.")
+		return nil
+	}
+
+	for _, c := range containers {
+		if c.Status != domain.StatusRunning {
+			fmt.Printf("▶️  Iniciando %s...\n", c.Name)
+			if err := o.runtime.Start(ctx, c.ID); err != nil {
+				fmt.Printf("⚠️  Falha ao iniciar %s: %v\n", c.Name, err)
+			}
+		}
+	}
+	fmt.Println("✅ Containers iniciados.")
 	return nil
 }
 
